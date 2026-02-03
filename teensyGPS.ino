@@ -1,0 +1,347 @@
+//-------------------------------------------
+// teensyGPS.ino
+//-------------------------------------------
+// A neo6m based GPS device that uses the Boat library
+// for encoding and transport.
+//
+// Contains a nominal USB Serial UI that can turn the GPS unit (parser)
+// on and off and display debugging information.
+//
+// Connects to the neo6m device via the NEO_SERIAL port (default = Serial5)
+// and parses nmea0183 messags into a model that can be sent out via
+// Seatalk (and/or NMEA2000).
+
+
+#include <myDebug.h>
+#include <neoGPS.h>
+#include <EEPROM.h>
+
+#define dbg_eeprom 		0
+
+
+#define UPDATE_MILLIS	1000
+#define NEO_SERIAL		Serial5
+
+
+// Seatalk
+
+#include <instST.h>
+bool g_seatalk_enabled;
+#define ST_IDLE_BUS_MS				10		// ms bus must be idle to send next datagram
+#define ST_SEND_INTERVAL			10
+#define SERIAL_ST2					Serial2
+	// MUST open and manage the Serial port that agrees with
+	// the boolean semantic of "port2" in calls made from neoGPS.cpp.
+	// port2=#define E80_PORT2=1 is used in the "port2" param of the
+	// calls to instST_out.cpp datagram methods.
+	// Therefore the port must be opened for output by our program.
+#define E80_PORT2		1
+
+
+// NMEA2000
+
+#include <inst2000.h>
+
+
+
+//---------------------------------
+// Teensy Pins Used
+//---------------------------------
+// 23 - CRX from CANBUS module if WITH_NMEA2000
+// 22 - CTX to CANBUS module if WITH_NMEA2000
+// 0  - RX1 Seatalk1 if WITH_SEATALK
+// 1  = TX1 Seatalk1 if WITH_SEATALK
+// 20 - TX5 Neo6M
+// 21 - RX5 Neo6M
+//
+// 9 - ALIVE_LED
+
+#define ALIVE_LED		9
+#define ALIVE_OFF_TIME	980
+#define ALIVE_ON_TIME	20
+
+//-----------------------------------
+// EEPROM
+//-----------------------------------
+// Separate from teensyBoat range which starts at 512
+
+#define GPS_EEPROM_BASE 	256
+
+
+static void saveToEEPROM()
+{
+	int offset = GPS_EEPROM_BASE;
+	EEPROM.write(offset++,NeoSeatalkEnabled());
+	EEPROM.write(offset++,NeoNMEA2000Enabled());
+	display(dbg_eeprom,"EEPROM saved SEATALK=%d NMEA2000=%d",
+		NeoSeatalkEnabled(),
+		NeoNMEA2000Enabled());
+}
+
+
+void loadFromEEPROM()
+{
+	int offset = GPS_EEPROM_BASE;
+	uint8_t enable_seatalk = EEPROM.read(offset++);
+	if (enable_seatalk == 255) enable_seatalk = 0;
+	uint8_t enable_nmea2000 = EEPROM.read(offset++);
+	if (enable_nmea2000 == 255) enable_nmea2000 = 0;
+	display(dbg_eeprom,"EEPROM loaded SEATALK=%d NMEA2000=%d",
+		enable_seatalk,
+		enable_nmea2000);
+	enableNeoSeatalk(enable_seatalk);
+	enableNeoNMEA200(enable_nmea2000);
+}
+
+
+
+//---------------------------------
+// Help
+//---------------------------------
+
+static void showHelp(bool detailed)
+{
+	// int d = detailed ? 0 : 1;
+
+	display(0,"",0);
+	display(0,"teensyBoat Help",0);
+	proc_entry();
+	display(0,"?              show condensed help",0);
+	display(0,"help           show detailed help",0);
+
+	display(0,"",0);
+	display(0,"SEATALK = N    Send out via Seatalk; cur=%d",NeoSeatalkEnabled());
+	display(0,"NMEA200 = N    Send out via Seatalk; default=%d",NeoNMEA2000Enabled());
+
+	display(0,"",0);
+	display(0,"Save to EEPROM",0);
+	display(0,"    LOAD = load the current instrument configuration to EEPROM",0);
+	display(0,"    SAVE = save the current instrument configuration to EEPROM",0);
+
+	display(0,"",0);
+	display(0,"Monadic Commands",0);
+	// display(0,"    STATE = return the state of the satellites",0);
+	display(0,"    L     = monadic command to Show NMEA2000 Device List",0);
+	display(0,"    Q     = monadic command to Query NMEA2000 Devices",0);
+	display(0,"",0);
+	
+	proc_leave();
+}
+
+
+//------------------------
+// setup
+//------------------------
+
+void setup()
+{
+	#if ALIVE_LED
+		pinMode(ALIVE_LED,OUTPUT);
+		digitalWrite(ALIVE_LED,1);
+	#endif
+
+	Serial.begin(921600);	// !!! 115200
+	delay(2000);
+	display(0,"teensyGPS.ino setup() started",0);
+	proc_entry();
+	
+	loadFromEEPROM();
+
+	initNeo6M_GPS();
+
+	SERIAL_ST2.begin(4800, SERIAL_9N1);
+
+	// nmea2000 initialization
+
+	nmea2000.SetProductInformation(
+		"teensyGPS",            		// Manufacturer's Model serial code
+		2000,                        	// Manufacturer's uint8_t product code
+		"teensyGPS_device",   			// Manufacturer's Model ID
+		"tg_sw_1.0",             		// Manufacturer's Software version code
+		"tg_v_1.0",             		// Manufacturer's uint8_t Model version
+		3,                          	// LoadEquivalency uint8_t 3=150ma; Default=1. x * 50 mA
+		2101,                       	// N2kVersion Default=2101
+		1,                          	// CertificationLevel Default=1
+		0                           	// iDev (int) index of the device on \ref Devices
+		);
+	nmea2000.SetConfigurationInformation(
+		"prhSystems",      // ManufacturerInformation
+		"tbInstall1",      // InstallationDescription1
+		"tbInstall2"       // InstallationDescription2
+		);
+	nmea2000.SetDeviceInformation(
+		234567,  // uint32_t Unique number, i.e. Serial number.
+		130,     // uint8_t  Device function = Positioning System
+		60,      // uint8_t  Device class = External Environment
+		2046     // uint16_t Registration/Company) ID // 2046 does not exist; choosen arbitrarily
+		);
+	nmea2000.init(false);
+
+
+	proc_leave();
+	display(0,"teensyGPS.ino  setup() finished",0);
+	display(0,"type ?<enter> for help",0);
+}
+
+
+//--------------------------------------------------
+// handleCommand()
+//--------------------------------------------------
+
+uint16_t hexOrUint(const String &str)
+	// // base 0 auto-detects "0x" prefix
+{
+	return strtol(str.c_str(), nullptr, 0);
+}
+
+
+static void handleCommand(String lval, String rval, bool got_equals)
+{
+	display(0,"command: %s%s%s",lval.c_str(),got_equals?"=":"",rval.c_str());
+
+	if (lval == "?")
+		showHelp(1);
+	else if (lval.equals("l"))
+		nmea2000.listDevices();
+	else if (lval.equals("q"))
+		nmea2000.sendDeviceQuery();
+
+	// Warning: changing modes, particularly to Seatalk may
+	// require a reboot of the E80.
+
+	else if (lval == "seatalk")
+	{
+		bool enable = rval.toInt();
+		if (enable)
+			enableNeoNMEA200(false);
+		enableNeoSeatalk(enable);
+	}
+	else if (lval == "nmea2000")
+	{
+		bool enable = rval.toInt();
+		if (enable)
+			enableNeoSeatalk(false);
+		enableNeoNMEA200(enable);
+	}
+
+	// EEPROM
+
+	else if (lval == "save")
+		saveToEEPROM();
+	else if (lval == "load")
+		loadFromEEPROM();
+
+	// unknown command
+
+	else
+		my_error("unknown command: %s%s%s",lval.c_str(),got_equals?"=":"",rval.c_str());
+
+}	// handleCommand()
+
+
+
+//------------------------------------------------
+// handleSerial()
+//------------------------------------------------
+
+static void handleSerial()
+{
+	// Serial UI
+
+	if (Serial.available())
+	{
+		static String lval;
+		static String rval;
+		static bool got_equals;
+		char c = Serial.read();
+
+		if (c == 0x0a)
+		{
+			handleCommand(lval.toLowerCase(),rval.toLowerCase(),got_equals);
+			lval = "";
+			rval = "";
+			got_equals = 0;
+		}
+		else if (c == '=')
+		{
+			got_equals = 1;
+		}
+		else if (c != 0x0d)
+		{
+			if (got_equals)
+				rval += c;
+			else
+				lval += c;
+		}
+	}
+}	// handleSerial()
+
+
+
+
+//--------------------------------------------
+// loop()
+//--------------------------------------------
+
+void loop()
+{
+	doNeo6M_GPS();
+
+	//-------------------
+	// SEATALK
+	//-------------------
+
+	static uint32_t last_st_read;
+	static uint32_t last_st_write;
+
+	// purge the input buffer
+
+	while (SERIAL_ST2.available())
+	{
+		/* int c = */ SERIAL_ST2.read();
+		last_st_read = millis();
+	}
+	// send one datagram from the ST port's queue
+
+	uint32_t now_st = millis();
+	if (now_st - last_st_read >= ST_IDLE_BUS_MS &&
+		now_st - last_st_write > ST_SEND_INTERVAL)
+	{
+		sendDatagram(E80_PORT2);
+		last_st_write = millis();
+	}
+
+	//---------------------
+	// NMEA200
+	//----------------------
+
+	nmea2000.ParseMessages(); // Keep parsing messages
+	#if BROADCAST_NMEA2000_INFO
+		nmea2000.broadcastNMEA2000Info();
+	#endif
+
+	//-------------------
+	// UI
+	//-------------------
+
+	#if ALIVE_LED
+		static bool alive_on = 0;
+		static uint32_t last_alive_time = 0;
+		uint32_t alive_now = millis();
+		uint32_t alive_delay = alive_on ? ALIVE_ON_TIME : ALIVE_OFF_TIME;
+		if (alive_now - last_alive_time >= alive_delay)
+		{
+			alive_on = !alive_on;
+			digitalWrite(ALIVE_LED,alive_on);
+			last_alive_time = alive_now;
+		}
+	#endif
+	
+	// USB SERIAL
+
+	handleSerial();
+
+}	// loop()
+
+
+// end of teensyGPS.ino
