@@ -20,7 +20,7 @@
 
 
 #define UPDATE_MILLIS	1000
-#define NEO_SERIAL		Serial5
+#define NEO6M_SERIAL	Serial5
 
 
 // Seatalk
@@ -28,13 +28,14 @@
 #include <instST.h>
 #define ST_IDLE_BUS_MS				10		// ms bus must be idle to send next datagram
 #define ST_SEND_INTERVAL			10
+
+#define E80_PORT2					1
 #define SERIAL_ST2					Serial2
 	// MUST open and manage the Serial port that agrees with
 	// the boolean semantic of "port2" in calls made from neoGPS.cpp.
 	// port2=#define E80_PORT2=1 is used in the "port2" param of the
 	// calls to instST_out.cpp datagram methods.
-	// Therefore the port must be opened for output by our program.
-#define E80_PORT2		1
+	// Therefore the Serial2 port must be opened and managed by this program.
 
 
 // NMEA2000
@@ -146,7 +147,7 @@ void setup()
 	
 	loadFromEEPROM();
 
-	initNeo6M_GPS(1,0x99);
+	initNeo6M_GPS(&NEO6M_SERIAL,1,0x99);
 
 	SERIAL_ST2.begin(4800, SERIAL_9N1);
 
