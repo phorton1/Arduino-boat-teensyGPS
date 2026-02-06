@@ -12,53 +12,43 @@
 // Seatalk (and/or NMEA2000).
 
 
+//------------------------
+// Teensy Pins Used
+//------------------------
+// 23 - CRX from CANBUS module
+// 22 - CTX to CANBUS module
+// 0  - RX1 Seatalk1
+// 1  = TX1 Seatalk1
+// 15 - RX3 Neo6m
+// 14 - TX3 Neo6m
+// 9  - ALIVE_LED
+
 #include <myDebug.h>
-#include <neoGPS.h>
+#include "neoGPS.h"
 #include <EEPROM.h>
 
 #define dbg_eeprom 		0
 
 
-#define UPDATE_MILLIS	1000
-#define NEO6M_SERIAL	Serial5
+#define ALIVE_LED		9
+#define ALIVE_OFF_TIME	980
+#define ALIVE_ON_TIME	20
 
+#define SERIAL_ST1		Serial1
+#define NEO6M_SERIAL	Serial3
 
 // Seatalk
 
 #include <instST.h>
 #define ST_IDLE_BUS_MS				10		// ms bus must be idle to send next datagram
 #define ST_SEND_INTERVAL			10
-
-#define E80_PORT2					1
-#define SERIAL_ST2					Serial2
-	// MUST open and manage the Serial port that agrees with
-	// the boolean semantic of "port2" in calls made from neoGPS.cpp.
-	// port2=#define E80_PORT2=1 is used in the "port2" param of the
-	// calls to instST_out.cpp datagram methods.
-	// Therefore the Serial2 port must be opened and managed by this program.
-
+#define USE_E80_PORT2				0		// "port2" param for calls to Boat instST_out routines of SERIAL_ST1
 
 // NMEA2000
 
 #include <inst2000.h>
 
 
-
-//---------------------------------
-// Teensy Pins Used
-//---------------------------------
-// 23 - CRX from CANBUS module if WITH_NMEA2000
-// 22 - CTX to CANBUS module if WITH_NMEA2000
-// 0  - RX1 Seatalk1 if WITH_SEATALK
-// 1  = TX1 Seatalk1 if WITH_SEATALK
-// 20 - TX5 Neo6M
-// 21 - RX5 Neo6M
-//
-// 9 - ALIVE_LED
-
-#define ALIVE_LED		9
-#define ALIVE_OFF_TIME	980
-#define ALIVE_ON_TIME	20
 
 //-----------------------------------
 // EEPROM
@@ -110,8 +100,8 @@ static void showHelp(bool detailed)
 	display(0,"help           show detailed help",0);
 
 	display(0,"",0);
-	display(0,"SEATALK = N    Send out via Seatalk; cur=%d",NeoSeatalkEnabled());
-	display(0,"NMEA200 = N    Send out via Seatalk; default=%d",NeoNMEA2000Enabled());
+	display(0,"SEATALK  = N    Send out via Seatalk; cur=%d",NeoSeatalkEnabled());
+	display(0,"NMEA2000 = N    Send out via Seatalk; default=%d",NeoNMEA2000Enabled());
 
 	display(0,"",0);
 	display(0,"Save to EEPROM",0);
@@ -147,9 +137,9 @@ void setup()
 	
 	loadFromEEPROM();
 
-	initNeo6M_GPS(&NEO6M_SERIAL,1,0x99);
+	initNeo6M_GPS(&NEO6M_SERIAL,USE_E80_PORT2,1,0x99);
 
-	SERIAL_ST2.begin(4800, SERIAL_9N1);
+	SERIAL_ST1.begin(4800, SERIAL_9N1);
 
 	// nmea2000 initialization
 
@@ -175,7 +165,7 @@ void setup()
 		60,      // uint8_t  Device class = External Environment
 		2046     // uint16_t Registration/Company) ID // 2046 does not exist; choosen arbitrarily
 		);
-	nmea2000.init(false);
+	nmea2000.init(TEENSYGPS_NMEA_ADDRESS);
 
 
 	proc_leave();
@@ -317,9 +307,9 @@ static void handleStPort()
 
 	// purge the input buffer
 
-	while (SERIAL_ST2.available())
+	while (SERIAL_ST1.available())
 	{
-		int c = SERIAL_ST2.read();
+		int c = SERIAL_ST1.read();
 		last_st_read = millis();
 
 		// the 9th bit is set on the first 'byte' of a sequence
@@ -372,7 +362,7 @@ static void handleStPort()
 	if (now_st - last_st_read >= ST_IDLE_BUS_MS &&
 		now_st - last_st_write > ST_SEND_INTERVAL)
 	{
-		sendDatagram(E80_PORT2);
+		sendDatagram(USE_E80_PORT2);
 		last_st_write = millis();
 	}
 }
