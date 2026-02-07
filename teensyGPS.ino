@@ -110,9 +110,10 @@ static void showHelp(bool detailed)
 
 	display(0,"",0);
 	display(0,"Monadic Commands",0);
-	// display(0,"    STATE = return the state of the satellites",0);
-	display(0,"    L     = monadic command to Show NMEA2000 Device List",0);
-	display(0,"    Q     = monadic command to Query NMEA2000 Devices",0);
+	display(0,"    REBOOT = Reboot the teensyGPS",0);
+	// display(0,"    STATE  = return the state of the satellites",0);
+	display(0,"    L      = monadic command to Show NMEA2000 Device List",0);
+	display(0,"    Q      = monadic command to Query NMEA2000 Devices",0);
 	display(0,"",0);
 	
 	proc_leave();
@@ -221,6 +222,16 @@ static void handleCommand(String lval, String rval, bool got_equals)
 	else if (lval == "load")
 		loadFromEEPROM();
 
+	// other
+
+	else if (lval == "reboot")
+	{
+		warning(0,"REBOOTING teensyGPS!!",0);
+		delay(300);
+		SCB_AIRCR = 0x05FA0004;
+		while (1) { delay(1000); }
+	}
+	
 	// unknown command
 
 	else
@@ -388,7 +399,7 @@ void loop()
 	// NMEA200
 	//----------------------
 
-	if (NeoNMEA2000Enabled())
+	// if (NeoNMEA2000Enabled())
 	{
 		nmea2000.ParseMessages(); // Keep parsing messages
 		#if BROADCAST_NMEA2000_INFO
