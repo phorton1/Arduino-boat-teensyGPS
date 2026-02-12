@@ -94,7 +94,7 @@ static void showHelp(bool detailed)
 	// int d = detailed ? 0 : 1;
 
 	display(0,"",0);
-	display(0,"teensyBoat Help",0);
+	display(0,"teensyGPS Help",0);
 	proc_entry();
 	display(0,"?              show condensed help",0);
 	display(0,"help           show detailed help",0);
