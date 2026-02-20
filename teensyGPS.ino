@@ -111,9 +111,8 @@ static void showHelp()
 	display(0,"L       = Show NMEA2000 Device List",0);
 	display(0,"Q       = Query NMEA2000 Devices",0);
 	display(0,"",0);
+	display(0,"Monitoring",0);
 	display(0,"",0);
-	display(d,"Monitoring",0);
-	display(d,"",0);
 	display(0,"M_ST   = N    monitor Seatalk messags",0);
 	display(0,"M_2000 = N    monitor known NMEA2000 sensor messages",0);
 	display(0,"              0x0001	= sensors out, known messages in",0);
