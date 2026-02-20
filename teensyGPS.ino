@@ -15,73 +15,84 @@
 //------------------------
 // Teensy Pins Used
 //------------------------
-// 23 - CRX from CANBUS module
-// 22 - CTX to CANBUS module
-// 0  - RX1 Seatalk1
-// 1  = TX1 Seatalk1
-// 15 - RX3 Neo6m
+// 13 - ALIVE_LED
 // 14 - TX3 Neo6m
-// 9  - ALIVE_LED
+// 15 - RX3 Neo6m
+// 16 - RX4 Seatalk
+// 17 - TX4 Seatalk
+// 19 - Seatalk Enabled
+// 20 - NMEA2000 Enabled
+// 22 - CTX to CANBUS module
+// 23 - CRX from CANBUS module
 
 #include <myDebug.h>
 #include "neoGPS.h"
-#include <EEPROM.h>
+#include <instST.h>
+#include <inst2000.h>
+#include <instSimulator.h>
+#include <boatSimulator.h>
 
-#define dbg_eeprom 		0
-
-
-#define ALIVE_LED		9
+#define ALIVE_LED		13
 #define ALIVE_OFF_TIME	980
 #define ALIVE_ON_TIME	20
 
-#define SERIAL_ST1		Serial1
-#define NEO6M_SERIAL	Serial3
-
-// Seatalk
-
-#include <instST.h>
-#define ST_IDLE_BUS_MS				10		// ms bus must be idle to send next datagram
-#define ST_SEND_INTERVAL			10
-#define USE_E80_PORT2				0		// "port2" param for calls to Boat instST_out routines of SERIAL_ST1
 
 // NMEA2000
 
-#include <inst2000.h>
+static const unsigned long gpsTransmitMessages[] = {
+	// these system PGNs may not be necessary here,
+	// but it is more conformal to include them.
+#if 1
+	PGN_REQUEST,
+	PGN_ADDRESS_CLAIM,
+	PGN_PGN_LIST,
+	PGN_HEARTBEAT,
+	PGN_PRODUCT_INFO,
+	PGN_DEVICE_CONFIG,
+#endif
 
+	PGN_SYSTEM_DATE_TIME,
+	// PGN_VESSEL_HEADING,
+	// PGN_HEADING_TRACK_CONTROL,
+	// PGN_ENGINE_RAPID,
+	// PGN_ENGINE_DYNAMIC,
+	// PGN_AC_INPUT_STATUS,
+    // PGN_AC_OUTPUT_STATUS,
+	// PGN_FLUID_LEVEL,
+	// PGN_AGS_CONFIG_STATUS,
+	// //PGN_AGS_STATUS,
+	// PGN_SPEED_WATER_REF,
+	// PGN_WATER_DEPTH,
+	// PGN_DISTANCE_LOG,
+	// //PGN_POSITION_RAPID_UPDATE,
+	// //PGN_COG_SOG_RAPID_UPDATE,
+	PGN_GNSS_POSITION_DATA,
+	// //PGN_LOCAL_TIME_OFFSET,
+	// //PGN_AIS_CLASS_B_POSITION,
+	// //PGN_DATUM,
+	// PGN_CROSS_TRACK_ERROR,
+	// PGN_NAVIGATION_DATA,
+	// //PGN_ROUTE_WP_INFO,
+	// //PGN_SET_AND_DRIFT,
+	PGN_GNSS_SATS_IN_VIEW,
+	// //PGN_AIS_STATIC_B_PART_A,
+	// //PGN_AIS_STATIC_B_PART_B.
+	// PGN_WIND_DATA,
+	// //PGN_ENV_PARAMETERS,
+	// //PGN_TEMPERATURE,
+	PGN_DIRECTION_DATA,
+	// PGN_SEATALK_ROUTE_INFO,
+    //
+	// PGN_SEATALK_ROUTE_INFO,
+    //
+	// PGN_GEN_PHASE_A_AC_POWER,
+	// PGN_GEN_PHASE_A_BASIC_AC,
+	// PGN_TOTAL_AC_POWER,
+	// PGN_AVERAGE_AC_QUANTITIES,
+	// PGN_SEATALK_GEN_INFO,
 
-
-//-----------------------------------
-// EEPROM
-//-----------------------------------
-// Separate from teensyBoat range which starts at 512
-
-#define GPS_EEPROM_BASE 	256
-
-
-static void saveToEEPROM()
-{
-	int offset = GPS_EEPROM_BASE;
-	EEPROM.write(offset++,NeoSeatalkEnabled());
-	EEPROM.write(offset++,NeoNMEA2000Enabled());
-	display(dbg_eeprom,"EEPROM saved SEATALK=%d NMEA2000=%d",
-		NeoSeatalkEnabled(),
-		NeoNMEA2000Enabled());
-}
-
-
-void loadFromEEPROM()
-{
-	int offset = GPS_EEPROM_BASE;
-	uint8_t enable_seatalk = EEPROM.read(offset++);
-	if (enable_seatalk == 255) enable_seatalk = 0;
-	uint8_t enable_nmea2000 = EEPROM.read(offset++);
-	if (enable_nmea2000 == 255) enable_nmea2000 = 0;
-	display(dbg_eeprom,"EEPROM loaded SEATALK=%d NMEA2000=%d",
-		enable_seatalk,
-		enable_nmea2000);
-	enableNeoSeatalk(enable_seatalk);
-	enableNeoNMEA200(enable_nmea2000);
-}
+	0
+};
 
 
 
@@ -89,33 +100,30 @@ void loadFromEEPROM()
 // Help
 //---------------------------------
 
-static void showHelp(bool detailed)
+static void showHelp()
 {
-	// int d = detailed ? 0 : 1;
-
 	display(0,"",0);
-	display(0,"teensyGPS Help",0);
+	display(0,"teensyGPS Help SEATALK_ENABLED(%d) NMEA2000_ENABLED(%d)",seatalk_enabled,nmea2000_enabled);
+	display(0,"",0);
 	proc_entry();
-	display(0,"?              show condensed help",0);
-	display(0,"help           show detailed help",0);
-
+	display(0,"?       = show help",0);
+	display(0,"reboot  = Reboot the teensyGPS",0);
+	display(0,"L       = Show NMEA2000 Device List",0);
+	display(0,"Q       = Query NMEA2000 Devices",0);
 	display(0,"",0);
-	display(0,"SEATALK  = N    Send out via Seatalk; cur=%d",NeoSeatalkEnabled());
-	display(0,"NMEA2000 = N    Send out via Seatalk; default=%d",NeoNMEA2000Enabled());
-
 	display(0,"",0);
-	display(0,"Save to EEPROM",0);
-	display(0,"    LOAD = load the current instrument configuration to EEPROM",0);
-	display(0,"    SAVE = save the current instrument configuration to EEPROM",0);
-
-	display(0,"",0);
-	display(0,"Monadic Commands",0);
-	display(0,"    REBOOT = Reboot the teensyGPS",0);
-	// display(0,"    STATE  = return the state of the satellites",0);
-	display(0,"    L      = monadic command to Show NMEA2000 Device List",0);
-	display(0,"    Q      = monadic command to Query NMEA2000 Devices",0);
-	display(0,"",0);
-	
+	display(d,"Monitoring",0);
+	display(d,"",0);
+	display(0,"M_ST   = N    monitor Seatalk messags",0);
+	display(0,"M_2000 = N    monitor known NMEA2000 sensor messages",0);
+	display(0,"              0x0001	= sensors out, known messages in",0);
+	display(0,"              0x0002 = GPS/AIS specifically",0);
+	display(0,"              0x0004 = known proprietary in",0);
+	display(0,"              0x0008 = unknown (not busi.e. proprietary) in",0);
+	display(0,"              0x0010 = BUS in",0);
+	display(0,"              0x0020 = BUS out",0);
+	display(0,"              0x1000	= self (sent) as well as received",0);
+	display(0,"              0x8000	= show raw 'instrument' messages",0);
 	proc_leave();
 }
 
@@ -136,37 +144,44 @@ void setup()
 	display(0,"teensyGPS.ino setup() started",0);
 	proc_entry();
 	
-	loadFromEEPROM();
+	initNeoGPS();
 
-	initNeo6M_GPS(&NEO6M_SERIAL,USE_E80_PORT2,1,0x99);
+	if (seatalk_enabled)
+	{
+		display(0,"Opening SERIAL_ST",0);
+		ST_SERIAL.begin(4800, SERIAL_9N1);
+	}
 
-	SERIAL_ST1.begin(4800, SERIAL_9N1);
+	if (nmea2000_enabled)
+	{
+		display(0,"Initializing NMEA2000",0);
+		nmea2000.SetProductInformation(
+			"teensyGPS",            		// Manufacturer's Model serial code
+			2000,                        	// Manufacturer's uint8_t product code
+			"teensyGPS_device",   			// Manufacturer's Model ID
+			"tg_sw_1.0",             		// Manufacturer's Software version code
+			"tg_v_1.0",             		// Manufacturer's uint8_t Model version
+			3,                          	// LoadEquivalency uint8_t 3=150ma; Default=1. x * 50 mA
+			2101,                       	// N2kVersion Default=2101
+			1,                          	// CertificationLevel Default=1
+			0                           	// iDev (int) index of the device on \ref Devices
+			);
+		nmea2000.SetConfigurationInformation(
+			"prhSystems",      // ManufacturerInformation
+			"tbInstall1",      // InstallationDescription1
+			"tbInstall2"       // InstallationDescription2
+			);
+		nmea2000.SetDeviceInformation(
+			234567,  // uint32_t Unique number, i.e. Serial number.
+			130,     // uint8_t  Device function = Positioning System
+			60,      // uint8_t  Device class = External Environment
+			2046     // uint16_t Registration/Company) ID // 2046 does not exist; choosen arbitrarily
+			);
 
-	// nmea2000 initialization
-
-	nmea2000.SetProductInformation(
-		"teensyGPS",            		// Manufacturer's Model serial code
-		2000,                        	// Manufacturer's uint8_t product code
-		"teensyGPS_device",   			// Manufacturer's Model ID
-		"tg_sw_1.0",             		// Manufacturer's Software version code
-		"tg_v_1.0",             		// Manufacturer's uint8_t Model version
-		3,                          	// LoadEquivalency uint8_t 3=150ma; Default=1. x * 50 mA
-		2101,                       	// N2kVersion Default=2101
-		1,                          	// CertificationLevel Default=1
-		0                           	// iDev (int) index of the device on \ref Devices
-		);
-	nmea2000.SetConfigurationInformation(
-		"prhSystems",      // ManufacturerInformation
-		"tbInstall1",      // InstallationDescription1
-		"tbInstall2"       // InstallationDescription2
-		);
-	nmea2000.SetDeviceInformation(
-		234567,  // uint32_t Unique number, i.e. Serial number.
-		130,     // uint8_t  Device function = Positioning System
-		60,      // uint8_t  Device class = External Environment
-		2046     // uint16_t Registration/Company) ID // 2046 does not exist; choosen arbitrarily
-		);
-	nmea2000.init(TEENSYGPS_NMEA_ADDRESS);
+		nmea2000.ExtendTransmitMessages(gpsTransmitMessages);
+			// different list of transmit messages
+		nmea2000.init(TEENSYGPS_NMEA_ADDRESS);
+	}
 
 
 	proc_leave();
@@ -191,45 +206,35 @@ static void handleCommand(String lval, String rval, bool got_equals)
 	display(0,"command: %s%s%s",lval.c_str(),got_equals?"=":"",rval.c_str());
 
 	if (lval == "?")
-		showHelp(1);
+		showHelp();
 	else if (lval.equals("l"))
 		nmea2000.listDevices();
 	else if (lval.equals("q"))
 		nmea2000.sendDeviceQuery();
-
-	// Warning: changing modes, particularly to Seatalk may
-	// require a reboot of the E80.
-
-	else if (lval == "seatalk")
-	{
-		bool enable = rval.toInt();
-		// if (enable)
-		// 	enableNeoNMEA200(false);
-		enableNeoSeatalk(enable);
-	}
-	else if (lval == "nmea2000")
-	{
-		bool enable = rval.toInt();
-		// if (enable)
-		// 	enableNeoSeatalk(false);
-		enableNeoNMEA200(enable);
-	}
-
-	// EEPROM
-
-	else if (lval == "save")
-		saveToEEPROM();
-	else if (lval == "load")
-		loadFromEEPROM();
-
-	// other
-
 	else if (lval == "reboot")
 	{
 		warning(0,"REBOOTING teensyGPS!!",0);
 		delay(300);
 		SCB_AIRCR = 0x05FA0004;
 		while (1) { delay(1000); }
+	}
+	
+	// monitor (subzet of teensyboat)
+
+	else if (lval.startsWith("m_"))
+	{
+		String what = lval.substring(2);
+		uint32_t value = hexOrUint(rval);
+		display(0,"monitor %s=0x%08x",what.c_str(),value);
+
+		int port = -1;
+		if (what.equals("st"))	port = PORT_ST1;
+		else if (what.equals("2000"))	port = PORT_2000;
+		else
+			my_error("invalid monitor command(%s)=%d",what.c_str(),value);
+
+		if (port != -1)
+			inst_sim.setMonitor(port,value);
 	}
 	
 	// unknown command
@@ -279,105 +284,6 @@ static void handleSerial()
 
 
 
-//-------------------------------------------------------------
-// Minimal ST parser for DEV_QUERY and Restart GPS Button
-//------------------------------------------------------------
-// Restart GPS button
-
-#define dbg_parse 0
-
-static void parseDatagram(uint8_t *dg)
-{
-	if (dg[0] == 0xa4 &&	// ST_DEV_QUERY == 0x1a4
-	   (dg[1] == 0x06 || dg[1] == 0x02))
-	{
-		warning(dbg_parse,"DEV_QUERY",0);
-		st_neo_device_query_pending = 1;
-	}
-	else if (
-		dg[0] == 0xa5 && 	// ST_SAT_DETAIL = 0x1a5
-		dg[1] == 0x4d &&
-		dg[15] == 0x08)
-	{
-		warning(dbg_parse,"RESTART GPS",0);
-		replyToRestartGPSButton();
-	}
-}
-
-
-
-
-static void handleStPort()
-{
-
-	static uint32_t last_st_read;
-	static uint32_t last_st_write;
-	static int outp = 0;
-	static int dlen = 0;
-	static uint8_t datagram[MAX_ST_BUF];
-
-	// purge the input buffer
-
-	while (SERIAL_ST1.available())
-	{
-		int c = SERIAL_ST1.read();
-		last_st_read = millis();
-
-		// the 9th bit is set on the first 'byte' of a sequence
-		// the low nibble of the 2nd byte + 3 is the total number
-		// 		of bytes, so all messages are at least 3 bytes
-		//		the high nibble may be data.
-		//	data[n+3];, implying a maximum datagram size of 19
-		//  this routine can never receive more than 19 bytes
-		//	but MAX_ST_BUF is set to 20 for neatness
-
-		#if 0
-			display(0,"ST got 0x%02x '%c'",c,(c>32 && c<128)?c:' ');
-		#endif
-
-		if (c > 0xff)
-		{
-			if (outp)
-			{
-				my_error("Dropped datagram ",0);
-				outp = 0;
-			}
-			datagram[outp++] = c;
-		}
-		else if (outp == 1)
-		{
-			dlen = (c & 0x0f) + 3;
-			datagram[outp++] = c;
-		}
-		else if (outp < dlen)
-		{
-			datagram[outp++] = c;
-			if (outp == dlen)
-			{
-				parseDatagram(datagram);
-				outp = 0;
-				dlen = 0;
-			}
-		}
-		else
-		{
-			my_error("unexpected byte 0x%02x '%c'",c,(c>32 && c<128)?c:' ');
-		}
-
-	}	// receiving datagrams
-
-
-	// send one datagram from the ST port's queue
-
-	uint32_t now_st = millis();
-	if (now_st - last_st_read >= ST_IDLE_BUS_MS &&
-		now_st - last_st_write > ST_SEND_INTERVAL)
-	{
-		sendDatagram(USE_E80_PORT2);
-		last_st_write = millis();
-	}
-}
-
 
 
 
@@ -387,19 +293,20 @@ static void handleStPort()
 
 void loop()
 {
-	doNeo6M_GPS();
+	doNeoGPS();
 
 	//-------------------
 	// SEATALK
 	//-------------------
 
-	handleStPort();
+	if (seatalk_enabled)
+		handleStPort();
 
 	//---------------------
 	// NMEA200
 	//----------------------
 
-	// if (NeoNMEA2000Enabled())
+	if (nmea2000_enabled)
 	{
 		nmea2000.ParseMessages(); // Keep parsing messages
 		#if BROADCAST_NMEA2000_INFO

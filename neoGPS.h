@@ -6,20 +6,72 @@
 
 #pragma once
 
-extern void initNeo6M_GPS(HardwareSerial *neo_serial, bool e80_port2, uint8_t version, uint8_t subversion);
-extern void doNeo6M_GPS();
+#define PIN_SEATALK_ENABLED 	19
+#define PIN_NMEA2000_ENABLED	20
 
-extern void enableNeoSeatalk(bool enable);
-extern void enableNeoNMEA200(bool enable);
-extern bool NeoSeatalkEnabled();
-extern bool NeoNMEA2000Enabled();
+#define ST_SERIAL				Serial4
+#define NEO_SERIAL				Serial3
 
 
 
-extern volatile bool st_neo_device_query_pending;
-	// set by client code (instST_in.cpp or teensyGPS.ino) when a device query is
-	// received, in which case, the neo will reply with a device id message
+#define MAX_PRN 				32
 
-extern void replyToRestartGPSButton();
-	// called by client code when a specific SAT_DETAIL message is
-	// received that is transmitted by the E80 "Restart GPS Button"
+#define SAT_IN_VIEW     		0x01   // appeared in GSV this cycle
+#define SAT_USED_IN_SOLUTION    0x02   // listed in GSA (used in solution)
+
+typedef struct
+{
+    int  elev;
+    int  azim;
+    int  snr;
+    uint32_t flags;
+} gps_sat_t;
+
+
+typedef struct
+{
+    int    	fix_type;			// NMEA0183 Fix type
+    double 	lat;
+    double 	lon;
+    double 	altitude;
+    float  	hdop;
+	float  	vdop;
+    float  	pdop;
+    float 	sog;      			// knots
+    float 	cog;      			// degrees
+	int    	num_viewed;			// as per GSV
+    int    	num_used;			// in solution as per GSA
+    gps_sat_t sats[MAX_PRN];
+    int    	year;
+    int    	month;
+    int    	day;
+    int    	hour;
+    int    	minute;
+    int  	seconds;
+
+} gps_model_t;
+
+
+// in neoGPS.cpp
+
+extern void initNeoGPS();
+extern void doNeoGPS();
+extern gps_model_t gps_model;
+
+extern bool seatalk_enabled;
+extern bool nmea2000_enabled;
+
+// in neoST.cpp
+
+extern void handleStPort();
+extern void sendNeoST();
+
+// in neo2000.cpp
+
+extern void sendNeo2000();
+
+
+
+
+
+
