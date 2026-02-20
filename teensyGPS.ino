@@ -10,6 +10,10 @@
 // Connects to the neo6m device via the NEO_SERIAL port (default = Serial5)
 // and parses nmea0183 messags into a model that can be sent out via
 // Seatalk (and/or NMEA2000).
+//
+// The Seatalk port is always opened, and the NMEA2000 device is always
+// initialized.  The jumpers merely control whether messages are parsed
+// and or transmitted.
 
 
 //------------------------
@@ -103,7 +107,7 @@ static const unsigned long gpsTransmitMessages[] = {
 static void showHelp()
 {
 	display(0,"",0);
-	display(0,"teensyGPS Help SEATALK_ENABLED(%d) NMEA2000_ENABLED(%d)",seatalk_enabled,nmea2000_enabled);
+	display(0,"teensyGPS Help SEATALK_ENABLED(%d) NMEA2000_ENABLED(%d)",seatalkEnabled(),nmea2000Enabled());
 	display(0,"",0);
 	proc_entry();
 	display(0,"?       = show help",0);
@@ -145,13 +149,13 @@ void setup()
 	
 	initNeoGPS();
 
-	if (seatalk_enabled)
+	// if (seatalk_enabled)
 	{
 		display(0,"Opening SERIAL_ST",0);
 		ST_SERIAL.begin(4800, SERIAL_9N1);
 	}
 
-	if (nmea2000_enabled)
+	// if (nmea2000_enabled)
 	{
 		display(0,"Initializing NMEA2000",0);
 		nmea2000.SetProductInformation(
@@ -298,14 +302,14 @@ void loop()
 	// SEATALK
 	//-------------------
 
-	if (seatalk_enabled)
+	// if (seatalk_enabled)
 		handleStPort();
 
 	//---------------------
 	// NMEA200
 	//----------------------
 
-	if (nmea2000_enabled)
+	// if (nmea2000_enabled)
 	{
 		nmea2000.ParseMessages(); // Keep parsing messages
 		#if BROADCAST_NMEA2000_INFO

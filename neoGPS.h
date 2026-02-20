@@ -58,8 +58,8 @@ extern void initNeoGPS();
 extern void doNeoGPS();
 extern gps_model_t gps_model;
 
-extern bool seatalk_enabled;
-extern bool nmea2000_enabled;
+extern bool seatalkEnabled();
+extern bool nmea2000Enabled();
 
 // in neoST.cpp
 

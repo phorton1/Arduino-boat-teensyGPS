@@ -342,7 +342,6 @@ static void replyToRestartGPSButton()
 	// Called from instST_in.cpp while parsing "in" SAT_DETAIL
 	// and DIF_DETAIL messages that are not otherwise expected.
 {
-	if (!seatalk_enabled) return;
 	warning(0,"replyToRestartGPSButton()",0);
 
 	// This very specific signature and response allows the "Restart GPS" button
@@ -395,6 +394,8 @@ static void replyToRestartGPSButton()
 
 static void parseDatagram(uint8_t *dg)
 {
+	if (!seatalkEnabled()) return;
+	
 	if (dg[0] == 0xa4 &&	// ST_DEV_QUERY == 0x1a4
 	   (dg[1] == 0x06 || dg[1] == 0x02))
 	{
@@ -408,6 +409,13 @@ static void parseDatagram(uint8_t *dg)
 	{
 		warning(dbg_st_in,"RESTART GPS",0);
 		replyToRestartGPSButton();
+
+		// reboot teensyGPS after giving a delay for ST message to be received
+		delay(300);
+		warning(0,"REBOOTING teensyGPS!!",0);
+		delay(300);
+		SCB_AIRCR = 0x05FA0004;
+		while (1) { delay(1000); }
 	}
 }
 

@@ -34,10 +34,7 @@
 #define FRAME_IDLE_TIME	50			// 50 ms idle defines a frame
 	// we skip first, possibly partial, frame after initialization
 
-bool seatalk_enabled;
-bool nmea2000_enabled;
 gps_model_t gps_model;
-
 
 static uint32_t last_receive_time = 0;
 static bool neo_started = 0;
@@ -50,6 +47,8 @@ static int got_gsa = 0;
 #endif
 
 
+bool seatalkEnabled()	{ return !digitalRead(PIN_SEATALK_ENABLED); }
+bool nmea2000Enabled() 	{ return !digitalRead(PIN_NMEA2000_ENABLED); }
 
 
 static void initModel()
@@ -216,12 +215,11 @@ void initNeoGPS()
 {
 	pinMode(PIN_SEATALK_ENABLED,INPUT_PULLUP);
 	pinMode(PIN_NMEA2000_ENABLED,INPUT_PULLUP);
-	seatalk_enabled = !digitalRead(PIN_SEATALK_ENABLED);
-	nmea2000_enabled = !digitalRead(PIN_SEATALK_ENABLED);
+
 
 	display(dbg_neo,"initNeoGPS(%s,%s)",
-		seatalk_enabled?"SEATALK":"-",
-		nmea2000_enabled?"NMEA2000":"-");
+		seatalkEnabled()?"SEATALK":"-",
+		nmea2000Enabled()?"NMEA2000":"-");
 	proc_entry();
 
 
@@ -725,9 +723,9 @@ void doNeoGPS()
 			#endif
 
 			cycle_count++;
-			if (seatalk_enabled)
+			if (seatalkEnabled())
 				sendNeoST();
-			if (nmea2000_enabled)
+			if (nmea2000Enabled())
 				sendNeo2000();
 		}
 		else
