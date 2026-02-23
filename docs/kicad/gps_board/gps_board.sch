@@ -190,7 +190,7 @@ U 1 1 68DEB69F
 P 2050 1100
 F 0 "J1" V 2200 1200 50  0000 L CNN
 F 1 "NMEA2000" V 2200 750 50  0000 L CNN
-F 2 "0_my_footprints:myPheonix4x3.81_right" H 2050 1100 50  0001 C CNN
+F 2 "0_my_footprints2:JST4" H 2050 1100 50  0001 C CNN
 F 3 "~" H 2050 1100 50  0001 C CNN
 	1    2050 1100
 	0    -1   -1   0   
@@ -384,7 +384,7 @@ U 1 1 691B72AF
 P 3000 1100
 F 0 "J2" V 3150 800 50  0000 L CNN
 F 1 "SEATALK" V 3150 1000 50  0000 L CNN
-F 2 "0_my_footprints:myPheonix3x3.81_right" H 3000 1100 50  0001 C CNN
+F 2 "0_my_footprints2:JST3" H 3000 1100 50  0001 C CNN
 F 3 "~" H 3000 1100 50  0001 C CNN
 	1    3000 1100
 	0    1    -1   0   
@@ -438,17 +438,6 @@ F 1 "10K" V 7900 2550 50  0000 C CNN
 F 2 "0_my_footprints:myResistor" V 7830 2550 50  0001 C CNN
 F 3 "~" H 7900 2550 50  0001 C CNN
 	1    7900 2550
-	1    0    0    -1  
-$EndComp
-$Comp
-L 0_my_teensy:myTeensy4.0 U2
-U 1 1 681E4C83
-P 5250 3300
-F 0 "U2" H 6078 3303 60  0001 L CNN
-F 1 "myTeensy4.0" H 5100 3200 60  0000 L CNN
-F 2 "0_my_teensy:teensy40" V 6150 3350 60  0001 C CNN
-F 3 "" V 6150 3350 60  0000 C CNN
-	1    5250 3300
 	1    0    0    -1  
 $EndComp
 Text GLabel 5100 2300 1    50   Input ~ 0
@@ -540,58 +529,6 @@ F 3 "" H 2800 5800 50  0001 C CNN
 	1    2800 5800
 	-1   0    0    1   
 $EndComp
-Text GLabel 5400 2300 1    50   Input ~ 0
-EN_SEATALK
-Text GLabel 5300 2300 1    50   Input ~ 0
-EN_NMEA200
-$Comp
-L Connector_Generic:Conn_01x02 J9
-U 1 1 69A751D7
-P 5750 5600
-F 0 "J9" V 6000 5550 50  0000 C CNN
-F 1 "EN_NMEA2000" V 5900 5550 50  0000 C CNN
-F 2 "0_my_footprints2:pinHeader1x2" H 5750 5600 50  0001 C CNN
-F 3 "~" H 5750 5600 50  0001 C CNN
-	1    5750 5600
-	0    1    1    0   
-$EndComp
-$Comp
-L Connector_Generic:Conn_01x02 J8
-U 1 1 69A75965
-P 5100 5600
-F 0 "J8" V 5350 5550 50  0000 C CNN
-F 1 "EN_SEATALK" V 5250 5550 50  0000 C CNN
-F 2 "0_my_footprints2:pinHeader1x2" H 5100 5600 50  0001 C CNN
-F 3 "~" H 5100 5600 50  0001 C CNN
-	1    5100 5600
-	0    1    1    0   
-$EndComp
-Text GLabel 5100 5400 1    50   Input ~ 0
-EN_SEATALK
-Text GLabel 5650 5400 1    50   Input ~ 0
-EN_NMEA200
-$Comp
-L power:GND #PWR0101
-U 1 1 69AB1AC8
-P 5000 5400
-F 0 "#PWR0101" H 5000 5150 50  0001 C CNN
-F 1 "GND" V 5000 5200 50  0000 C CNN
-F 2 "" H 5000 5400 50  0001 C CNN
-F 3 "" H 5000 5400 50  0001 C CNN
-	1    5000 5400
-	-1   0    0    1   
-$EndComp
-$Comp
-L power:GND #PWR0102
-U 1 1 69AB211D
-P 5750 5400
-F 0 "#PWR0102" H 5750 5150 50  0001 C CNN
-F 1 "GND" V 5750 5200 50  0000 C CNN
-F 2 "" H 5750 5400 50  0001 C CNN
-F 3 "" H 5750 5400 50  0001 C CNN
-	1    5750 5400
-	-1   0    0    1   
-$EndComp
 Text GLabel 5800 2300 1    63   Input ~ 0
 RX3
 Text GLabel 7550 3750 0    63   Input ~ 0
@@ -602,4 +539,15 @@ Text GLabel 5700 2300 1    63   Input ~ 0
 RX4
 Text GLabel 5600 2300 1    63   Input ~ 0
 TX4
+$Comp
+L 0_my_teensy:myTeensy4.0 U2
+U 1 1 681E4C83
+P 5250 3300
+F 0 "U2" H 6078 3303 60  0001 L CNN
+F 1 "myTeensy4.0" H 5100 3200 60  0000 L CNN
+F 2 "0_my_teensy:teensy40" V 6150 3350 60  0001 C CNN
+F 3 "" V 6150 3350 60  0000 C CNN
+	1    5250 3300
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
