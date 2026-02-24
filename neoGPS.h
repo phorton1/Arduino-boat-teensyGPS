@@ -6,12 +6,8 @@
 
 #pragma once
 
-#define PIN_SEATALK_ENABLED 	19
-#define PIN_NMEA2000_ENABLED	20
-
 #define ST_SERIAL				Serial4
 #define NEO_SERIAL				Serial3
-
 
 
 #define MAX_PRN 				32
@@ -52,14 +48,16 @@ typedef struct
 } gps_model_t;
 
 
+// in teensyGPS.ino
+
+extern uint8_t seatalk_enabled;
+extern uint8_t nmea2000_enabled;
+
 // in neoGPS.cpp
 
 extern void initNeoGPS();
 extern void doNeoGPS();
 extern gps_model_t gps_model;
-
-extern bool seatalkEnabled();
-extern bool nmea2000Enabled();
 
 // in neoST.cpp
 

@@ -35,10 +35,16 @@
 #include <inst2000.h>
 #include <instSimulator.h>
 #include <boatSimulator.h>
+#include <EEPROM.h>
+
+#define dbg_eeprom 		0
 
 #define ALIVE_LED		13
 #define ALIVE_OFF_TIME	980
 #define ALIVE_ON_TIME	20
+
+#define DEFAULT_SEATALK_ENABLED 	2
+#define DEFAULT_NMEA2000_ENABLED	1
 
 
 // NMEA2000
@@ -99,6 +105,40 @@ static const unsigned long gpsTransmitMessages[] = {
 };
 
 
+//-----------------------------------
+// EEPROM
+//-----------------------------------
+// Separate from teensyBoat range which starts at 512
+
+#define GPS_EEPROM_BASE 	256
+
+uint8_t seatalk_enabled;
+uint8_t nmea2000_enabled;
+
+
+static void saveToEEPROM()
+{
+	int offset = GPS_EEPROM_BASE;
+	EEPROM.write(offset++,seatalk_enabled);
+	EEPROM.write(offset++,nmea2000_enabled);
+	display(dbg_eeprom,"EEPROM saved SEATALK=%d NMEA2000=%d",
+		seatalk_enabled,
+		nmea2000_enabled);
+}
+
+
+void loadFromEEPROM()
+{
+	int offset = GPS_EEPROM_BASE;
+	seatalk_enabled = EEPROM.read(offset++);
+	if (seatalk_enabled == 255) seatalk_enabled = DEFAULT_SEATALK_ENABLED;
+	nmea2000_enabled = EEPROM.read(offset++);
+	if (nmea2000_enabled == 255) nmea2000_enabled = DEFAULT_NMEA2000_ENABLED;
+	display(dbg_eeprom,"EEPROM loaded SEATALK=%d NMEA2000=%d",
+		seatalk_enabled,
+		nmea2000_enabled);
+}
+
 
 //---------------------------------
 // Help
@@ -107,18 +147,24 @@ static const unsigned long gpsTransmitMessages[] = {
 static void showHelp()
 {
 	display(0,"",0);
-	display(0,"teensyGPS Help SEATALK_ENABLED(%d) NMEA2000_ENABLED(%d)",seatalkEnabled(),nmea2000Enabled());
+	display(0,"teensyGPS Help",0);
 	display(0,"",0);
 	proc_entry();
-	display(0,"?       = show help",0);
-	display(0,"reboot  = Reboot the teensyGPS",0);
-	display(0,"L       = Show NMEA2000 Device List",0);
-	display(0,"Q       = Query NMEA2000 Devices",0);
+	display(0,"?        = show help",0);
+	display(0,"",0);
+	display(0,"SEATALK  = 0/1/2:  0=off, 1=port opened, 2=output; cur=%d",seatalk_enabled);
+	display(0,"NMEA2000 = 0/1/2:  0=off, 1=port opened, 2=output; cur=%d",nmea2000_enabled);
+	display(0,"",0);
+	display(0,"reboot   = Reboot the teensyGPS",0);
+	display(0,"LOAD     = Load settings from EEPROM",0);
+	display(0,"SAVE     = Save settings to EEPROM",0);
+	display(0,"L        = Show NMEA2000 Device List",0);
+	display(0,"Q        = Query NMEA2000 Devices",0);
 	display(0,"",0);
 	display(0,"Monitoring",0);
 	display(0,"",0);
-	display(0,"M_ST   = N    monitor Seatalk messags",0);
-	display(0,"M_2000 = N    monitor known NMEA2000 sensor messages",0);
+	display(0,"M_ST    = N   monitor Seatalk messags",0);
+	display(0,"M_2000  = N   monitor known NMEA2000 sensor messages",0);
 	display(0,"              0x0001	= sensors out, known messages in",0);
 	display(0,"              0x0002 = GPS/AIS specifically",0);
 	display(0,"              0x0004 = known proprietary in",0);
@@ -147,15 +193,17 @@ void setup()
 	display(0,"teensyGPS.ino setup() started",0);
 	proc_entry();
 	
+	loadFromEEPROM();
+
 	initNeoGPS();
 
-	// if (seatalk_enabled)
+	if (seatalk_enabled)
 	{
 		display(0,"Opening SERIAL_ST",0);
 		ST_SERIAL.begin(4800, SERIAL_9N1);
 	}
 
-	// if (nmea2000_enabled)
+	if (nmea2000_enabled)
 	{
 		display(0,"Initializing NMEA2000",0);
 		nmea2000.SetProductInformation(
@@ -210,10 +258,23 @@ static void handleCommand(String lval, String rval, bool got_equals)
 
 	if (lval == "?")
 		showHelp();
-	else if (lval.equals("l"))
-		nmea2000.listDevices();
-	else if (lval.equals("q"))
-		nmea2000.sendDeviceQuery();
+
+	else if (lval.equals("seatalk"))
+	{
+		uint8_t val = rval.toInt();
+		if (val<0) val = 0;
+		if (val>2) val = 2;
+		display(0,"setting SEATALK = %d",val);
+		seatalk_enabled = val;
+	}
+	else if (lval.equals("nmea2000"))
+	{
+		uint8_t val = rval.toInt();
+		if (val<0) val = 0;
+		if (val>2) val = 2;
+		display(0,"setting NMEA2000 = %d",val);
+		nmea2000_enabled = val;
+	}
 	else if (lval == "reboot")
 	{
 		warning(0,"REBOOTING teensyGPS!!",0);
@@ -221,7 +282,16 @@ static void handleCommand(String lval, String rval, bool got_equals)
 		SCB_AIRCR = 0x05FA0004;
 		while (1) { delay(1000); }
 	}
-	
+	else if (lval == "load")
+		loadFromEEPROM();
+	else if (lval == "save")
+		saveToEEPROM();
+
+	else if (lval.equals("l"))
+		nmea2000.listDevices();
+	else if (lval.equals("q"))
+		nmea2000.sendDeviceQuery();
+
 	// monitor (subzet of teensyboat)
 
 	else if (lval.startsWith("m_"))
@@ -302,14 +372,14 @@ void loop()
 	// SEATALK
 	//-------------------
 
-	// if (seatalk_enabled)
+	if (seatalk_enabled)
 		handleStPort();
 
 	//---------------------
 	// NMEA200
 	//----------------------
 
-	// if (nmea2000_enabled)
+	if (nmea2000_enabled)
 	{
 		nmea2000.ParseMessages(); // Keep parsing messages
 		#if BROADCAST_NMEA2000_INFO

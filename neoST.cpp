@@ -394,7 +394,7 @@ static void replyToRestartGPSButton()
 
 static void parseDatagram(uint8_t *dg)
 {
-	if (!seatalkEnabled()) return;
+	if (seatalk_enabled < 2) return;
 	
 	if (dg[0] == 0xa4 &&	// ST_DEV_QUERY == 0x1a4
 	   (dg[1] == 0x06 || dg[1] == 0x02))

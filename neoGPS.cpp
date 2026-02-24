@@ -47,10 +47,6 @@ static int got_gsa = 0;
 #endif
 
 
-bool seatalkEnabled()	{ return !digitalRead(PIN_SEATALK_ENABLED); }
-bool nmea2000Enabled() 	{ return !digitalRead(PIN_NMEA2000_ENABLED); }
-
-
 static void initModel()
 {
 	memset(&gps_model,0,sizeof(gps_model));
@@ -213,15 +209,10 @@ static bool genuineNeoModule()
 
 void initNeoGPS()
 {
-	pinMode(PIN_SEATALK_ENABLED,INPUT_PULLUP);
-	pinMode(PIN_NMEA2000_ENABLED,INPUT_PULLUP);
-
-
 	display(dbg_neo,"initNeoGPS(%s,%s)",
-		seatalkEnabled()?"SEATALK":"-",
-		nmea2000Enabled()?"NMEA2000":"-");
+		seatalk_enabled?"SEATALK":"-",
+		nmea2000_enabled?"NMEA2000":"-");
 	proc_entry();
-
 
 	#if 1
 		// Allocate a larger RX buffer for NEO_SERIAL
@@ -236,7 +227,6 @@ void initNeoGPS()
 		// This causes hard crashes:
 		// 		NEO_SERIAL.addMemoryForRead(serial1_rxbuf, sizeof(serial1_rxbuf));
 	#endif
-
 
 	neo_started = 0;
 	last_receive_time = 0;
@@ -723,9 +713,9 @@ void doNeoGPS()
 			#endif
 
 			cycle_count++;
-			if (seatalkEnabled())
+			if (seatalk_enabled > 1)
 				sendNeoST();
-			if (nmea2000Enabled())
+			if (nmea2000_enabled > 1)
 				sendNeo2000();
 		}
 		else
