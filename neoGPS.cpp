@@ -713,9 +713,9 @@ void doNeoGPS()
 			#endif
 
 			cycle_count++;
-			if (seatalk_enabled > 1)
+			if (seatalk_enabled)
 				sendNeoST();
-			if (nmea2000_enabled > 1)
+			if (nmea2000_enabled)
 				sendNeo2000();
 		}
 		else

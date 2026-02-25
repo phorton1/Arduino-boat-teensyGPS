@@ -43,8 +43,8 @@
 #define ALIVE_OFF_TIME	980
 #define ALIVE_ON_TIME	20
 
-#define DEFAULT_SEATALK_ENABLED 	2
-#define DEFAULT_NMEA2000_ENABLED	1
+#define DEFAULT_SEATALK_ENABLED 	1
+#define DEFAULT_NMEA2000_ENABLED	0
 
 
 // NMEA2000
@@ -152,8 +152,8 @@ static void showHelp()
 	proc_entry();
 	display(0,"?        = show help",0);
 	display(0,"",0);
-	display(0,"SEATALK  = 0/1/2:  0=off, 1=port opened, 2=output; cur=%d",seatalk_enabled);
-	display(0,"NMEA2000 = 0/1/2:  0=off, 1=port opened, 2=output; cur=%d",nmea2000_enabled);
+	display(0,"SEATALK  = 0/1:  0=off, 1=enabled; cur=%d",seatalk_enabled);
+	display(0,"NMEA2000 = 0/1:  0=off, 1=enabled; cur=%d",nmea2000_enabled);
 	display(0,"",0);
 	display(0,"reboot   = Reboot the teensyGPS",0);
 	display(0,"LOAD     = Load settings from EEPROM",0);
@@ -197,13 +197,13 @@ void setup()
 
 	initNeoGPS();
 
-	if (seatalk_enabled)
+	// if (seatalk_enabled)
 	{
 		display(0,"Opening SERIAL_ST",0);
 		ST_SERIAL.begin(4800, SERIAL_9N1);
 	}
 
-	if (nmea2000_enabled)
+	// if (nmea2000_enabled)
 	{
 		display(0,"Initializing NMEA2000",0);
 		nmea2000.SetProductInformation(
@@ -263,7 +263,7 @@ static void handleCommand(String lval, String rval, bool got_equals)
 	{
 		uint8_t val = rval.toInt();
 		if (val<0) val = 0;
-		if (val>2) val = 2;
+		if (val>1) val = 1;
 		display(0,"setting SEATALK = %d",val);
 		seatalk_enabled = val;
 	}
@@ -271,7 +271,7 @@ static void handleCommand(String lval, String rval, bool got_equals)
 	{
 		uint8_t val = rval.toInt();
 		if (val<0) val = 0;
-		if (val>2) val = 2;
+		if (val>1) val = 1;
 		display(0,"setting NMEA2000 = %d",val);
 		nmea2000_enabled = val;
 	}
@@ -372,14 +372,14 @@ void loop()
 	// SEATALK
 	//-------------------
 
-	if (seatalk_enabled)
+	// if (seatalk_enabled)
 		handleStPort();
 
 	//---------------------
 	// NMEA200
 	//----------------------
 
-	if (nmea2000_enabled)
+	// if (nmea2000_enabled)
 	{
 		nmea2000.ParseMessages(); // Keep parsing messages
 		#if BROADCAST_NMEA2000_INFO
